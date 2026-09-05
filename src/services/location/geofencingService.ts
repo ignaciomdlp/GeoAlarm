@@ -1,5 +1,5 @@
-﻿import * as Location from 'expo-location';
-import { GEOFENCE_BACKGROUND_TASK_NAME } from './backgroundLocationTask';
+import * as Location from 'expo-location';
+import { GEOFENCE_BACKGROUND_TASK_NAME } from './constants';
 import { PollingTier } from '../../domain/models/location';
 
 class GeofencingService {
@@ -46,7 +46,7 @@ class GeofencingService {
       timeInterval,
       distanceInterval,
       showsBackgroundLocationIndicator: true,
-      pausesLocationUpdatesAutomatically: false,
+      pausesUpdatesAutomatically: false,
       activityType: Location.ActivityType.AutomotiveNavigation,
       foregroundService: {
         notificationTitle: 'PlaceO\'Clock Activo',

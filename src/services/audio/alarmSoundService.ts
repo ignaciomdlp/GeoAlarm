@@ -1,19 +1,16 @@
-﻿import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 import { Vibration } from 'react-native';
 import { AlarmAudioConfig, VIBRATION_PRESETS } from '../../domain/models/alarm';
 
 class AlarmSoundService {
-  private soundObject: Audio.Sound | null = null;
+  private player: AudioPlayer | null = null;
   private isAlarmPlaying = false;
 
   public async setupAudioMode(): Promise<void> {
     try {
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        shouldDuckAndroid: false,
-        playThroughEarpieceAndroid: false,
-        allowsRecordingIOS: false,
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,
       });
     } catch (error) {
       console.error('[AlarmSoundService] Error setting audio mode:', error);
@@ -27,20 +24,13 @@ class AlarmSoundService {
     try {
       await this.setupAudioMode();
 
-      // Audio sintético nativo / stream de alarma
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: 'https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg' },
-        {
-          shouldPlay: true,
-          isLooping: true,
-          volume: config.volume ?? 1.0,
-        },
-        undefined,
-        true
-      );
-
-      this.soundObject = sound;
-      await this.soundObject.playAsync();
+      const source = { uri: 'https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg' };
+      this.player = createAudioPlayer(source);
+      this.player.loop = true;
+      if (config.volume !== undefined) {
+        this.player.volume = config.volume;
+      }
+      this.player.play();
 
       const pattern = config.vibration?.pattern || VIBRATION_PRESETS.continuous.pattern;
       Vibration.vibrate(pattern, true);
@@ -53,14 +43,14 @@ class AlarmSoundService {
     this.isAlarmPlaying = false;
     Vibration.cancel();
 
-    if (this.soundObject) {
+    if (this.player) {
       try {
-        await this.soundObject.stopAsync();
-        await this.soundObject.unloadAsync();
+        this.player.pause();
+        this.player.remove();
       } catch (err) {
-        console.error('[AlarmSoundService] Unload error:', err);
+        console.error('[AlarmSoundService] Stop error:', err);
       } finally {
-        this.soundObject = null;
+        this.player = null;
       }
     }
   }

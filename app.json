@@ -1,4 +1,4 @@
-﻿{
+{
   "expo": {
     "name": "PlaceO'Clock",
     "slug": "place-o-clock",
@@ -9,7 +9,11 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.placeoclock.geoalarm",
       "infoPlist": {
-        "UIBackgroundModes": ["location", "audio", "fetch"],
+        "UIBackgroundModes": [
+          "location",
+          "audio",
+          "fetch"
+        ],
         "NSLocationWhenInUseUsageDescription": "PlaceO'Clock necesita tu ubicación para calcular la distancia a tu parada de transporte.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "PlaceO'Clock monitorea en segundo plano tu distancia al destino para hacer sonar la alarma incluso si la app está cerrada o la pantalla bloqueada."
       }
@@ -37,12 +41,10 @@
           "isAndroidForegroundServiceEnabled": true
         }
       ],
-      [
-        "expo-av",
-        {
-          "microphonePermission": false
-        }
-      ]
+      "expo-font",
+      "expo-status-bar",
+      "expo-audio",
+      "expo-asset"
     ]
   }
 }
