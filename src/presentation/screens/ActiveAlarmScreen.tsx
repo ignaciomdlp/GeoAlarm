@@ -1,10 +1,11 @@
-﻿import React, { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, StatusBar } from 'react-native';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SlideToDismiss } from '../components/SlideToDismiss';
 import { useAlarmStore } from '../store/useAlarmStore';
 import { alarmSoundService } from '../../services/audio/alarmSoundService';
+import { notificationService } from '../../services/notifications/notificationService';
 
 export const ActiveAlarmScreen: React.FC = () => {
   const activeAlarm = useAlarmStore((s) => s.activeRingingAlarm);
@@ -19,8 +20,9 @@ export const ActiveAlarmScreen: React.FC = () => {
   }, []);
 
   const handleDismiss = async () => {
+    await notificationService.dismissArrivalNotifications();
     await alarmSoundService.stopAlarm();
-    dismissCurrentAlarm();
+    await dismissCurrentAlarm();
   };
 
   if (!activeAlarm) return null;

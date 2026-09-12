@@ -1,12 +1,14 @@
-﻿import * as TaskManager from 'expo-task-manager';
+import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { calculateHaversineDistanceMeters } from './haversine';
 import { isLocationReadingValid } from './gpsFilter';
 import { alarmSoundService } from '../audio/alarmSoundService';
+import { notificationService } from '../notifications/notificationService';
 import { useAlarmStore } from '../../presentation/store/useAlarmStore';
 import { PollingTier } from '../../domain/models/location';
-
-export const GEOFENCE_BACKGROUND_TASK_NAME = 'GEOALARM_LOCATION_TRACKER_TASK';
+import { Alarm } from '../../domain/models/alarm';
+import { GEOFENCE_BACKGROUND_TASK_NAME } from './constants';
 
 interface TaskData {
   locations?: Location.LocationObject[];
@@ -31,15 +33,30 @@ TaskManager.defineTask(GEOFENCE_BACKGROUND_TASK_NAME, async ({ data, error }) =>
     timestamp: latestLocation.timestamp,
   };
 
-  if (!isLocationReadingValid(reading)) return;
-
   const store = useAlarmStore.getState();
-  const activeAlarms = store.alarms.filter((a) => a.isActive);
+  const currentTier = store.currentTier || 'FAR';
+
+  if (!isLocationReadingValid(reading, currentTier)) return;
+
+  let activeAlarms = store.alarms.filter((a) => a.isActive);
+
+  // Mecanismo de seguridad contra pérdida de hidratación de Zustand en procesos en segundo plano
+  if (activeAlarms.length === 0) {
+    try {
+      const persisted = await AsyncStorage.getItem('@placeoclock_alarms_storage');
+      if (persisted) {
+        const parsed = JSON.parse(persisted);
+        const storedAlarms: Alarm[] = parsed?.state?.alarms || [];
+        activeAlarms = storedAlarms.filter((a) => a.isActive);
+      }
+    } catch (e) {
+      console.warn('[BackgroundLocationTask] Storage rehydration check failed:', e);
+    }
+  }
 
   if (activeAlarms.length === 0) return;
 
   let minDistance = Infinity;
-  let nearestAlarm = activeAlarms[0];
 
   for (const alarm of activeAlarms) {
     const dist = calculateHaversineDistanceMeters(
@@ -51,13 +68,15 @@ TaskManager.defineTask(GEOFENCE_BACKGROUND_TASK_NAME, async ({ data, error }) =>
 
     if (dist < minDistance) {
       minDistance = dist;
-      nearestAlarm = alarm;
     }
 
     if (dist <= alarm.radiusMeters) {
       if (!store.isAlarmRinging) {
         store.triggerAlarmActive(alarm, dist);
-        await alarmSoundService.triggerAlarm(alarm.audioConfig);
+        await Promise.all([
+          alarmSoundService.triggerAlarm(alarm.audioConfig),
+          notificationService.sendArrivalAlarmNotification(alarm.name, dist),
+        ]);
       }
       return;
     }

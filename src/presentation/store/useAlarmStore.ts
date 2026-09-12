@@ -1,4 +1,4 @@
-﻿import { create } from 'zustand';
+import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alarm, AlarmId } from '../../domain/models/alarm';
@@ -13,12 +13,17 @@ interface AlarmState {
   currentLocation: LocationReading | null;
   distanceToTargetMeters: number | null;
   currentTier: PollingTier;
+  isCreateModalOpen: boolean;
+  editingAlarm: Alarm | null;
 
-  addAlarm: (alarm: Alarm) => void;
-  removeAlarm: (id: AlarmId) => void;
+  openCreateModal: (alarm?: Alarm | null) => void;
+  closeCreateModal: () => void;
+  addAlarm: (alarm: Alarm) => Promise<void>;
+  updateAlarm: (id: AlarmId, updates: Partial<Alarm>) => Promise<void>;
+  removeAlarm: (id: AlarmId) => Promise<void>;
   toggleAlarm: (id: AlarmId) => Promise<void>;
   triggerAlarmActive: (alarm: Alarm, distance: number) => void;
-  dismissCurrentAlarm: () => void;
+  dismissCurrentAlarm: () => Promise<void>;
   updateTrackingMetrics: (location: LocationReading, distance: number, tier: PollingTier) => void;
 }
 
@@ -32,13 +37,52 @@ export const useAlarmStore = create<AlarmState>()(
       currentLocation: null,
       distanceToTargetMeters: null,
       currentTier: 'FAR',
+      isCreateModalOpen: false,
+      editingAlarm: null,
 
-      addAlarm: (alarm: Alarm) => {
-        set((state) => ({ alarms: [...state.alarms, alarm] }));
+      openCreateModal: (alarm = null) => {
+        set({ isCreateModalOpen: true, editingAlarm: alarm });
       },
 
-      removeAlarm: (id: AlarmId) => {
-        set((state) => ({ alarms: state.alarms.filter((a) => a.id !== id) }));
+      closeCreateModal: () => {
+        set({ isCreateModalOpen: false, editingAlarm: null });
+      },
+
+      addAlarm: async (alarm: Alarm) => {
+        const updated = [...get().alarms, alarm];
+        set({ alarms: updated });
+
+        if (alarm.isActive) {
+          await geofencingService.startTracking();
+          set({ isTrackingServiceActive: true });
+        }
+      },
+
+      updateAlarm: async (id: AlarmId, updates: Partial<Alarm>) => {
+        const updated = get().alarms.map((a) =>
+          a.id === id ? { ...a, ...updates, updatedAt: new Date().toISOString() } : a
+        );
+        set({ alarms: updated });
+
+        const anyActive = updated.some((a) => a.isActive);
+        if (anyActive && !get().isTrackingServiceActive) {
+          await geofencingService.startTracking();
+          set({ isTrackingServiceActive: true });
+        } else if (!anyActive && get().isTrackingServiceActive) {
+          await geofencingService.stopTracking();
+          set({ isTrackingServiceActive: false, distanceToTargetMeters: null });
+        }
+      },
+
+      removeAlarm: async (id: AlarmId) => {
+        const updated = get().alarms.filter((a) => a.id !== id);
+        set({ alarms: updated });
+
+        const anyActive = updated.some((a) => a.isActive);
+        if (!anyActive) {
+          await geofencingService.stopTracking();
+          set({ isTrackingServiceActive: false, distanceToTargetMeters: null });
+        }
       },
 
       toggleAlarm: async (id: AlarmId) => {
@@ -67,16 +111,25 @@ export const useAlarmStore = create<AlarmState>()(
         });
       },
 
-      dismissCurrentAlarm: () => {
+      dismissCurrentAlarm: async () => {
         const ringing = get().activeRingingAlarm;
+        let updatedAlarms = get().alarms;
         if (ringing) {
-          set((state) => ({
-            alarms: state.alarms.map((a) => (a.id === ringing.id ? { ...a, isActive: false } : a)),
-            isAlarmRinging: false,
-            activeRingingAlarm: null,
-          }));
-        } else {
-          set({ isAlarmRinging: false, activeRingingAlarm: null });
+          updatedAlarms = updatedAlarms.map((a) =>
+            a.id === ringing.id ? { ...a, isActive: false, updatedAt: new Date().toISOString() } : a
+          );
+        }
+
+        set({
+          alarms: updatedAlarms,
+          isAlarmRinging: false,
+          activeRingingAlarm: null,
+        });
+
+        const anyActive = updatedAlarms.some((a) => a.isActive);
+        if (!anyActive) {
+          await geofencingService.stopTracking();
+          set({ isTrackingServiceActive: false, distanceToTargetMeters: null, currentTier: 'FAR' });
         }
       },
 

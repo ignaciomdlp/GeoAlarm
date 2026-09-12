@@ -1,24 +1,53 @@
-﻿import React from 'react';
-import { View, Text, FlatList, StyleSheet, Switch, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, Text, FlatList, StyleSheet, Switch, TouchableOpacity, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAlarmStore } from '../store/useAlarmStore';
+import { Alarm, AVAILABLE_SOUNDS } from '../../domain/models/alarm';
 
 export const AlarmsListScreen: React.FC = () => {
   const alarms = useAlarmStore((s) => s.alarms);
   const toggleAlarm = useAlarmStore((s) => s.toggleAlarm);
   const removeAlarm = useAlarmStore((s) => s.removeAlarm);
+  const openCreateModal = useAlarmStore((s) => s.openCreateModal);
   const distance = useAlarmStore((s) => s.distanceToTargetMeters);
+  const currentTier = useAlarmStore((s) => s.currentTier);
   const isTracking = useAlarmStore((s) => s.isTrackingServiceActive);
+
+  const confirmDelete = (alarm: Alarm) => {
+    Alert.alert(
+      'Eliminar Alarma',
+      `¿Seguro que deseas eliminar la alarma "${alarm.name}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: () => removeAlarm(alarm.id),
+        },
+      ]
+    );
+  };
+
+  const getSoundLabel = (soundKey?: string) => {
+    const found = AVAILABLE_SOUNDS.find((s) => s.id === soundKey);
+    return found ? found.name : 'Alarma 1';
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Mis Alarmas</Text>
+        <View>
+          <Text style={styles.title}>Mis Alarmas</Text>
+          <Text style={styles.subtitle}>
+            {alarms.filter((a) => a.isActive).length} activas de {alarms.length}
+          </Text>
+        </View>
+
         {isTracking && (
           <View style={styles.trackingBadge}>
             <MaterialCommunityIcons name="radar" size={16} color="#10B981" />
             <Text style={styles.trackingText}>
-              {distance !== null ? `${distance} m restantes` : 'GPS Activo'}
+              {distance !== null ? `${distance} m restantes (${currentTier})` : 'GPS Activo'}
             </Text>
           </View>
         )}
@@ -36,11 +65,11 @@ export const AlarmsListScreen: React.FC = () => {
         <FlatList
           data={alarms}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingBottom: 120 }}
+          contentContainerStyle={{ paddingBottom: 140 }}
           renderItem={({ item }) => (
             <View style={styles.card}>
               <View style={styles.cardHeader}>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, marginRight: 8 }}>
                   <Text style={styles.alarmName}>{item.name}</Text>
                   <Text style={styles.destinationText} numberOfLines={1}>
                     {item.destination.address || item.destination.name}
@@ -55,14 +84,35 @@ export const AlarmsListScreen: React.FC = () => {
               </View>
 
               <View style={styles.cardFooter}>
-                <View style={styles.chip}>
-                  <MaterialCommunityIcons name="radius" size={14} color="#34D399" />
-                  <Text style={styles.chipText}>Radio: {item.radiusMeters} m</Text>
+                <View style={styles.chipsRow}>
+                  <View style={styles.chip}>
+                    <MaterialCommunityIcons name="radius" size={13} color="#34D399" />
+                    <Text style={styles.chipText}>{item.radiusMeters} m</Text>
+                  </View>
+
+                  <View style={styles.chip}>
+                    <MaterialCommunityIcons name="music-note" size={13} color="#C084FC" />
+                    <Text style={styles.chipSecondaryText}>{getSoundLabel(item.audioConfig?.soundKey)}</Text>
+                  </View>
                 </View>
 
-                <TouchableOpacity onPress={() => removeAlarm(item.id)}>
-                  <MaterialCommunityIcons name="trash-can-outline" size={20} color="#EF4444" />
-                </TouchableOpacity>
+                <View style={styles.actionsRow}>
+                  <TouchableOpacity
+                    style={styles.iconBtn}
+                    onPress={() => openCreateModal(item)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <MaterialCommunityIcons name="pencil-outline" size={20} color="#A855F7" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.iconBtn}
+                    onPress={() => confirmDelete(item)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <MaterialCommunityIcons name="trash-can-outline" size={20} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           )}
@@ -157,6 +207,18 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#2D104E',
   },
+  subtitle: {
+    fontSize: 13,
+    color: '#A855F7',
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    flex: 1,
+  },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -170,5 +232,18 @@ const styles = StyleSheet.create({
     color: '#34D399',
     fontSize: 12,
     fontWeight: '600',
+  },
+  chipSecondaryText: {
+    color: '#C084FC',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconBtn: {
+    padding: 4,
   },
 });

@@ -29,7 +29,15 @@
         "POST_NOTIFICATIONS",
         "WAKE_LOCK",
         "VIBRATE",
-        "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+        "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ]
     },
     "plugins": [
@@ -44,7 +52,18 @@
       "expo-font",
       "expo-status-bar",
       "expo-audio",
-      "expo-asset"
-    ]
+      "expo-asset",
+      [
+        "expo-notifications",
+        {
+          "color": "#7E22CE"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "b1897e46-cfdf-4389-9550-d97747db0376"
+      }
+    }
   }
 }

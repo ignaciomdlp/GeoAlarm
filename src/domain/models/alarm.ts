@@ -1,4 +1,4 @@
-﻿export type AlarmId = string;
+export type AlarmId = string;
 
 export type VibrationPatternId = 'continuous' | 'pulse' | 'sos';
 
@@ -8,7 +8,20 @@ export interface VibrationPattern {
   pattern: number[];
 }
 
-export type SoundKey = 'siren' | 'bell' | 'digital' | 'radar';
+export type SoundKey = 'alarm1' | 'alarm2' | 'siren' | 'radar';
+
+export interface SoundOption {
+  id: SoundKey;
+  name: string;
+  description: string;
+}
+
+export const AVAILABLE_SOUNDS: SoundOption[] = [
+  { id: 'alarm1', name: 'Alarma Digital 1', description: 'Tono rítmico de alta penetración' },
+  { id: 'alarm2', name: 'Alarma Intensa 2', description: 'Pitido crítico continuo para despertar' },
+  { id: 'siren', name: 'Sirena (Alarma 1)', description: 'Alarma estándar de transporte' },
+  { id: 'radar', name: 'Radar (Alarma 2)', description: 'Pulso de navegación' },
+];
 
 export interface AlarmAudioConfig {
   soundKey: SoundKey;

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -13,7 +13,10 @@ const Tab = createBottomTabNavigator();
 
 export const BottomTabNavigator = () => {
   const isAlarmRinging = useAlarmStore((s) => s.isAlarmRinging);
-  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+  const isCreateModalOpen = useAlarmStore((s) => s.isCreateModalOpen);
+  const editingAlarm = useAlarmStore((s) => s.editingAlarm);
+  const openCreateModal = useAlarmStore((s) => s.openCreateModal);
+  const closeCreateModal = useAlarmStore((s) => s.closeCreateModal);
   const [currentTab, setCurrentTab] = useState<'Alarms' | 'Map' | 'Profile'>('Alarms');
 
   if (isAlarmRinging) {
@@ -83,15 +86,16 @@ export const BottomTabNavigator = () => {
         <TouchableOpacity
           style={styles.fabButton}
           activeOpacity={0.85}
-          onPress={() => setIsCreateModalVisible(true)}
+          onPress={() => openCreateModal(null)}
         >
           <MaterialCommunityIcons name="plus" size={32} color="#FFFFFF" />
         </TouchableOpacity>
       )}
 
       <CreateAlarmModal
-        visible={isCreateModalVisible}
-        onClose={() => setIsCreateModalVisible(false)}
+        visible={isCreateModalOpen}
+        onClose={closeCreateModal}
+        alarmToEdit={editingAlarm}
       />
     </View>
   );

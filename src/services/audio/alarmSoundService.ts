@@ -1,16 +1,25 @@
 import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 import { Vibration } from 'react-native';
-import { AlarmAudioConfig, VIBRATION_PRESETS } from '../../domain/models/alarm';
+import { AlarmAudioConfig, SoundKey, VIBRATION_PRESETS } from '../../domain/models/alarm';
+
+const LOCAL_SOUND_ASSETS: Record<string, any> = {
+  alarm1: require('../../../assets/sounds/alarma 1.mp3'),
+  alarm2: require('../../../assets/sounds/alarma 2.mp3'),
+  siren: require('../../../assets/sounds/alarma 1.mp3'),
+  radar: require('../../../assets/sounds/alarma 2.mp3'),
+};
 
 class AlarmSoundService {
   private player: AudioPlayer | null = null;
   private isAlarmPlaying = false;
+  private previewTimeout: ReturnType<typeof setTimeout> | null = null;
 
   public async setupAudioMode(): Promise<void> {
     try {
       await setAudioModeAsync({
         playsInSilentMode: true,
         shouldPlayInBackground: true,
+        interruptionMode: 'doNotMix',
       });
     } catch (error) {
       console.error('[AlarmSoundService] Error setting audio mode:', error);
@@ -24,7 +33,7 @@ class AlarmSoundService {
     try {
       await this.setupAudioMode();
 
-      const source = { uri: 'https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg' };
+      const source = LOCAL_SOUND_ASSETS[config.soundKey] || LOCAL_SOUND_ASSETS.alarm1;
       this.player = createAudioPlayer(source);
       this.player.loop = true;
       if (config.volume !== undefined) {
@@ -39,7 +48,35 @@ class AlarmSoundService {
     }
   }
 
+  public async previewSound(soundKey: SoundKey, durationMs: number = 3000): Promise<void> {
+    await this.stopAlarm();
+    this.isAlarmPlaying = true;
+
+    try {
+      await this.setupAudioMode();
+      const source = LOCAL_SOUND_ASSETS[soundKey] || LOCAL_SOUND_ASSETS.alarm1;
+      this.player = createAudioPlayer(source);
+      this.player.loop = false;
+      this.player.volume = 1.0;
+      this.player.play();
+      Vibration.vibrate([0, 300, 200, 300], false);
+
+      if (this.previewTimeout) clearTimeout(this.previewTimeout);
+      this.previewTimeout = setTimeout(async () => {
+        await this.stopAlarm();
+      }, durationMs);
+    } catch (error) {
+      console.error('[AlarmSoundService] Preview failed:', error);
+      await this.stopAlarm();
+    }
+  }
+
   public async stopAlarm(): Promise<void> {
+    if (this.previewTimeout) {
+      clearTimeout(this.previewTimeout);
+      this.previewTimeout = null;
+    }
+
     this.isAlarmPlaying = false;
     Vibration.cancel();
 
@@ -57,3 +94,4 @@ class AlarmSoundService {
 }
 
 export const alarmSoundService = new AlarmSoundService();
+
