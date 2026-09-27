@@ -1,12 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Switch, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { alarmSoundService } from '../../services/audio/alarmSoundService';
 import { notificationService } from '../../services/notifications/notificationService';
 import { permissionsService, AppPermissionsStatus } from '../../services/permissions/permissionsService';
+import { useAlarmStore } from '../store/useAlarmStore';
+import { ThemeSwitch } from '../components/ThemeSwitch';
+import { COLORS } from '../theme/colors';
 
 export const ProfileScreen: React.FC = () => {
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const insets = useSafeAreaInsets();
+  const isDarkMode = useAlarmStore((s) => s.isDarkMode);
+  const toggleDarkMode = useAlarmStore((s) => s.toggleDarkMode);
+
+  const theme = COLORS[isDarkMode ? 'dark' : 'light'];
+
   const [isCloudSync, setIsCloudSync] = useState(false);
   const [isTestingAlarm, setIsTestingAlarm] = useState(false);
   const [permissions, setPermissions] = useState<AppPermissionsStatus | null>(null);
@@ -47,101 +56,151 @@ export const ProfileScreen: React.FC = () => {
     permissionsService.promptBatteryOptimizationExemption();
   };
 
+  const bottomBarPadding = Math.max(insets.bottom, 10);
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 130 }}>
-      <Text style={styles.title}>Ajustes y Diagnóstico</Text>
+    <ScrollView
+      style={[styles.container, { backgroundColor: theme.background }]}
+      contentContainerStyle={{ paddingBottom: 120 + bottomBarPadding }}
+      showsVerticalScrollIndicator={false}
+    >
+      <Text style={[styles.title, { color: theme.textPrimary }]}>Ajustes y Diagnóstico</Text>
 
       {/* Sección de Permisos Críticos */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Estado de Permisos</Text>
+      <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <Text style={[styles.sectionTitle, { color: isDarkMode ? theme.textSecondary : theme.primaryDark }]}>
+          Estado de Permisos
+        </Text>
 
         <View style={styles.permRow}>
           <MaterialCommunityIcons
             name={permissions?.foregroundLocation ? 'check-circle' : 'close-circle'}
-            size={20}
-            color={permissions?.foregroundLocation ? '#10B981' : '#EF4444'}
+            size={22}
+            color={permissions?.foregroundLocation ? (isDarkMode ? theme.accent : theme.accentDark) : theme.danger}
           />
-          <Text style={styles.permText}>Ubicación al Usar la App</Text>
+          <Text style={[styles.permText, { color: theme.textPrimary }]}>Ubicación al Usar la App</Text>
         </View>
 
         <View style={styles.permRow}>
           <MaterialCommunityIcons
             name={permissions?.backgroundLocation ? 'check-circle' : 'alert-circle'}
-            size={20}
-            color={permissions?.backgroundLocation ? '#10B981' : '#F59E0B'}
+            size={22}
+            color={permissions?.backgroundLocation ? (isDarkMode ? theme.accent : theme.accentDark) : '#F59E0B'}
           />
           <View style={{ flex: 1 }}>
-            <Text style={styles.permText}>Ubicación Permanente ("Siempre")</Text>
-            <Text style={styles.permSubtext}>Permite despertar la alarma con la pantalla bloqueada</Text>
+            <Text style={[styles.permText, { color: theme.textPrimary }]}>
+              Ubicación Permanente ("Siempre")
+            </Text>
+            <Text style={[styles.permSubtext, { color: theme.textSecondary }]}>
+              Permite despertar la alarma con la pantalla bloqueada
+            </Text>
           </View>
         </View>
 
         <View style={styles.permRow}>
           <MaterialCommunityIcons
             name={permissions?.notifications ? 'check-circle' : 'close-circle'}
-            size={20}
-            color={permissions?.notifications ? '#10B981' : '#EF4444'}
+            size={22}
+            color={permissions?.notifications ? (isDarkMode ? theme.accent : theme.accentDark) : theme.danger}
           />
-          <Text style={styles.permText}>Notificaciones de Alerta Crítica</Text>
+          <Text style={[styles.permText, { color: theme.textPrimary }]}>Notificaciones de Alerta Crítica</Text>
         </View>
 
-        <TouchableOpacity style={styles.permButton} onPress={handleRequestPermissions}>
+        <TouchableOpacity
+          style={[styles.permButton, { backgroundColor: isDarkMode ? theme.primary : theme.primaryDark }]}
+          onPress={handleRequestPermissions}
+          activeOpacity={0.85}
+        >
           <MaterialCommunityIcons name="shield-account" size={18} color="#FFFFFF" />
           <Text style={styles.permButtonText}>Verificar / Solicitar Permisos</Text>
         </TouchableOpacity>
       </View>
 
       {/* Sección de Diagnóstico */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Diagnóstico en Vivo</Text>
+      <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <Text style={[styles.sectionTitle, { color: isDarkMode ? theme.textSecondary : theme.primaryDark }]}>
+          Diagnóstico en Vivo
+        </Text>
 
         <TouchableOpacity
-          style={[styles.actionButton, isTestingAlarm && styles.actionButtonActive]}
+          style={[
+            styles.actionButton,
+            { backgroundColor: theme.surfaceElevated, borderColor: theme.border },
+            isTestingAlarm && { borderColor: theme.accent, borderWidth: 1.5 },
+          ]}
           onPress={handleCalibrationTest}
           disabled={isTestingAlarm}
+          activeOpacity={0.85}
         >
           <MaterialCommunityIcons
             name={isTestingAlarm ? 'volume-vibrate' : 'volume-high'}
             size={22}
-            color={isTestingAlarm ? '#34D399' : '#10B981'}
+            color={isDarkMode ? theme.accent : theme.accentDark}
           />
-          <Text style={styles.actionText}>
+          <Text style={[styles.actionText, { color: theme.textPrimary }]}>
             {isTestingAlarm ? 'Probando Alarma (4 seg)...' : 'Probar Alarma, Notificación y Háptica'}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton} onPress={handleBatteryOptimization}>
-          <MaterialCommunityIcons name="battery-charging-high" size={22} color="#C084FC" />
-          <Text style={styles.actionText}>Configurar Exención de Batería</Text>
+        <TouchableOpacity
+          style={[styles.actionButton, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}
+          onPress={handleBatteryOptimization}
+          activeOpacity={0.85}
+        >
+          <MaterialCommunityIcons
+            name="battery-charging-high"
+            size={22}
+            color={isDarkMode ? '#C084FC' : theme.primary}
+          />
+          <Text style={[styles.actionText, { color: theme.textPrimary }]}>
+            Configurar Exención de Batería
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Sección de Preferencias */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Preferencias</Text>
+      {/* Sección de Preferencias con el Switch Animado Sol/Luna */}
+      <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <Text style={[styles.sectionTitle, { color: isDarkMode ? theme.textSecondary : theme.primaryDark }]}>
+          Preferencias
+        </Text>
 
+        {/* Alternador Modo Claro / Modo Oscuro con Switch personalizado */}
         <View style={styles.row}>
-          <Text style={styles.rowLabel}>Tema Oscuro Morado</Text>
-          <Switch
-            value={isDarkMode}
-            onValueChange={setIsDarkMode}
-            trackColor={{ false: '#4A154B', true: '#10B981' }}
-          />
+          <View style={{ flex: 1, paddingRight: 10 }}>
+            <Text style={[styles.rowLabel, { color: theme.textPrimary }]}>
+              Modo Claro / Modo Oscuro
+            </Text>
+            <Text style={[styles.rowSubLabel, { color: theme.textSecondary }]}>
+              {isDarkMode ? 'Tema Oscuro Morado activo' : 'Tema Rosa y Verde Pastel activo'}
+            </Text>
+          </View>
+          <ThemeSwitch isDarkMode={isDarkMode} onToggle={toggleDarkMode} />
         </View>
 
-        <View style={styles.row}>
-          <Text style={styles.rowLabel}>Sincronización Cloud Supabase</Text>
+        <View style={[styles.row, { borderTopWidth: 1, borderTopColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', paddingTop: 12, marginTop: 12 }]}>
+          <View style={{ flex: 1, paddingRight: 10 }}>
+            <Text style={[styles.rowLabel, { color: theme.textPrimary }]}>Sincronización Cloud Supabase</Text>
+            <Text style={[styles.rowSubLabel, { color: theme.textSecondary }]}>
+              {isCloudSync ? 'Conectado a la nube' : 'Modo local sin conexión'}
+            </Text>
+          </View>
           <Switch
             value={isCloudSync}
             onValueChange={setIsCloudSync}
-            trackColor={{ false: '#4A154B', true: '#10B981' }}
+            trackColor={{ false: theme.border, true: theme.accent }}
+            thumbColor={isCloudSync ? (isDarkMode ? '#FFFFFF' : '#064E3B') : '#F4F3F4'}
           />
         </View>
       </View>
 
-      <View style={styles.infoBox}>
-        <MaterialCommunityIcons name="shield-check" size={24} color="#34D399" />
-        <Text style={styles.infoText}>
+      {/* Caja de Información de Arquitectura */}
+      <View style={[styles.infoBox, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+        <MaterialCommunityIcons
+          name="shield-check"
+          size={24}
+          color={isDarkMode ? theme.accent : theme.accentDark}
+        />
+        <Text style={[styles.infoText, { color: theme.textSecondary }]}>
           Monitoreo Foreground Service activo con optimización adaptativa por 3 escalones de proximidad:
           {'\n'}• Lejos (&gt;5km): cada 45s
           {'\n'}• Medio (1-5km): cada 15s
@@ -155,101 +214,104 @@ export const ProfileScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#12071F',
     paddingTop: 60,
     paddingHorizontal: 20,
   },
   title: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#FFFFFF',
     marginBottom: 20,
   },
   section: {
-    backgroundColor: '#1E0B36',
     borderRadius: 20,
-    padding: 16,
+    padding: 18,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#4A154B',
+    borderWidth: 1.5,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
   },
   sectionTitle: {
-    color: '#C084FC',
-    fontWeight: '700',
-    fontSize: 13,
+    fontWeight: '800',
+    fontSize: 12,
     textTransform: 'uppercase',
-    marginBottom: 12,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  rowLabel: {
-    color: '#FFFFFF',
-    fontSize: 15,
+    letterSpacing: 0.6,
+    marginBottom: 14,
   },
   permRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 8,
+    marginBottom: 14,
   },
   permText: {
-    color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   permSubtext: {
-    color: '#D8B4FE',
-    fontSize: 11,
-    marginTop: 1,
+    fontSize: 12,
+    marginTop: 2,
   },
   permButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    marginTop: 6,
     gap: 8,
-    backgroundColor: '#7E22CE',
-    paddingVertical: 10,
-    borderRadius: 12,
-    marginTop: 12,
+    elevation: 3,
   },
   permButtonText: {
     color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 13,
+    fontWeight: '800',
+    fontSize: 14,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    marginBottom: 10,
     gap: 12,
-    paddingVertical: 12,
+    borderWidth: 1,
   },
   actionButtonActive: {
-    opacity: 0.7,
+    opacity: 0.8,
   },
   actionText: {
-    color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  rowLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  rowSubLabel: {
+    fontSize: 12,
+    marginTop: 2,
   },
   infoBox: {
     flexDirection: 'row',
-    gap: 12,
-    backgroundColor: '#2D104E',
     padding: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#10B981',
+    gap: 12,
     alignItems: 'flex-start',
-    marginTop: 8,
   },
   infoText: {
-    color: '#E9D5FF',
+    flex: 1,
     fontSize: 12,
     lineHeight: 18,
-    flex: 1,
+    fontWeight: '500',
   },
 });

@@ -1,16 +1,26 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAlarmStore } from '../store/useAlarmStore';
+import { COLORS } from '../theme/colors';
 
 export const MapScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const webViewRef = useRef<WebView>(null);
   const alarms = useAlarmStore((s) => s.alarms);
   const currentLocation = useAlarmStore((s) => s.currentLocation);
+  const isDarkMode = useAlarmStore((s) => s.isDarkMode);
   const activeAlarms = alarms.filter((a) => a.isActive);
 
-  // Generar HTML con Leaflet y Dark Matter Carto Tiles
+  const theme = COLORS[isDarkMode ? 'dark' : 'light'];
+  const cartoApiKey = process.env.EXPO_PUBLIC_CARTO_API_KEY || '';
+
+  const bottomBarPadding = Math.max(insets.bottom, 10);
+  const barHeight = 64 + bottomBarPadding;
+
+  // Generar HTML con soporte para CARTO con API Key o fallback a OpenStreetMap sin marca de agua
   const mapHtml = `
     <!DOCTYPE html>
     <html>
@@ -25,24 +35,33 @@ export const MapScreen: React.FC = () => {
             padding: 0;
             width: 100%;
             height: 100%;
-            background: #12071F;
+            background: ${theme.background};
+          }
+          ${
+            !cartoApiKey && isDarkMode
+              ? `
+          .leaflet-tile {
+            filter: brightness(0.65) invert(0.9) contrast(2.5) hue-rotate(200deg) saturate(0.35);
+          }
+          `
+              : ''
           }
           .user-marker {
-            width: 16px;
-            height: 16px;
+            width: 18px;
+            height: 18px;
             background: #10B981;
             border-radius: 50%;
             border: 3px solid #FFFFFF;
             box-shadow: 0 0 14px #10B981;
           }
           .leaflet-popup-content-wrapper {
-            background: #1E0B36;
-            color: #FFFFFF;
-            border: 1px solid #7E22CE;
+            background: ${theme.surface};
+            color: ${theme.textPrimary};
+            border: 1px solid ${theme.border};
             border-radius: 12px;
           }
           .leaflet-popup-tip {
-            background: #1E0B36;
+            background: ${theme.surface};
           }
           .leaflet-container {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -58,20 +77,24 @@ export const MapScreen: React.FC = () => {
           var map = L.map('map', {
             center: [defaultLat, defaultLon],
             zoom: 14,
-            zoomControl: false
+            zoomControl: false,
+            attributionControl: false
           });
 
-          // Capa CartoDB Dark Matter (OpenStreetMap Tiles optimizadas para modo oscuro)
-          L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+          var cartoKey = '${cartoApiKey}';
+          var tileUrl = cartoKey
+            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=' + cartoKey
+            : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+          L.tileLayer(tileUrl, {
             maxZoom: 19,
-            subdomains: 'abcd',
-            attribution: '&copy; OpenStreetMap &copy; CARTO'
+            subdomains: 'abcd'
           }).addTo(map);
 
           var userIcon = L.divIcon({
             className: 'user-marker',
-            iconSize: [16, 16],
-            iconAnchor: [8, 8]
+            iconSize: [18, 18],
+            iconAnchor: [9, 9]
           });
 
           var userMarker = null;
@@ -95,8 +118,8 @@ export const MapScreen: React.FC = () => {
 
             items.forEach(function(alarm) {
               var circle = L.circle([alarm.destination.latitude, alarm.destination.longitude], {
-                color: '#10B981',
-                fillColor: '#7E22CE',
+                color: '${theme.accent}',
+                fillColor: '${theme.primary}',
                 fillOpacity: 0.35,
                 radius: alarm.radiusMeters,
                 weight: 2
@@ -167,34 +190,64 @@ export const MapScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <WebView
         ref={webViewRef}
         originWhitelist={['*']}
         source={{ html: mapHtml }}
-        style={styles.map}
+        style={[styles.map, { backgroundColor: theme.background }]}
         javaScriptEnabled
         domStorageEnabled
         startInLoadingState
         renderLoading={() => (
-          <View style={styles.loaderContainer}>
-            <ActivityIndicator size="large" color="#10B981" />
-            <Text style={styles.loaderText}>Cargando mapa OpenStreetMap...</Text>
+          <View style={[styles.loaderContainer, { backgroundColor: theme.background }]}>
+            <ActivityIndicator size="large" color={theme.accent} />
+            <Text style={[styles.loaderText, { color: theme.textSecondary }]}>Cargando mapa...</Text>
           </View>
         )}
       />
 
-      <View style={styles.overlayHeader}>
-        <Text style={styles.headerTitle}>Mapa de Geocercas</Text>
-        <Text style={styles.headerSubtitle}>
+      {/* Cabecera descriptiva: Mapa de GeoAlarmas */}
+      <View
+        style={[
+          styles.overlayHeader,
+          {
+            backgroundColor: isDarkMode ? 'rgba(30, 11, 54, 0.9)' : 'rgba(255, 204, 233, 0.95)',
+            borderColor: theme.border,
+          },
+        ]}
+      >
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>Mapa de GeoAlarmas</Text>
+        <Text
+          style={[
+            styles.headerSubtitle,
+            { color: isDarkMode ? theme.accentLight : theme.primaryDark },
+          ]}
+        >
           {activeAlarms.length === 0
             ? 'Sin alarmas activas'
-            : `${activeAlarms.length} ${activeAlarms.length === 1 ? 'geocerca activa' : 'geocercas activas'}`}
+            : `${activeAlarms.length} ${activeAlarms.length === 1 ? 'geoalarma activa' : 'geoalarmas activas'}`}
         </Text>
       </View>
 
-      <TouchableOpacity style={styles.recenterButton} activeOpacity={0.85} onPress={handleRecenter}>
-        <MaterialCommunityIcons name="crosshairs-gps" size={26} color="#FFFFFF" />
+      {/* Botón para centrar mapa en ubicación actual (debajo del botón + de crear alarma) */}
+      <TouchableOpacity
+        style={[
+          styles.recenterButton,
+          {
+            bottom: barHeight + 12,
+            backgroundColor: isDarkMode ? theme.primary : theme.surfaceElevated,
+            borderColor: theme.accent,
+          },
+        ]}
+        activeOpacity={0.85}
+        onPress={handleRecenter}
+      >
+        <MaterialCommunityIcons
+          name="crosshairs-gps"
+          size={26}
+          color={isDarkMode ? '#FFFFFF' : theme.primary}
+        />
       </TouchableOpacity>
     </View>
   );
@@ -203,20 +256,20 @@ export const MapScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#12071F',
   },
   map: {
     flex: 1,
-    backgroundColor: '#12071F',
   },
   loaderContainer: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: '#12071F',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loaderText: {
-    color: '#C084FC',
     marginTop: 12,
     fontSize: 14,
     fontWeight: '600',
@@ -226,37 +279,39 @@ const styles = StyleSheet.create({
     top: 54,
     left: 20,
     right: 20,
-    backgroundColor: 'rgba(30, 11, 54, 0.9)',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#4A154B',
+    borderWidth: 1.5,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   headerTitle: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '800',
   },
   headerSubtitle: {
-    color: '#34D399',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     marginTop: 2,
   },
   recenterButton: {
     position: 'absolute',
     right: 20,
-    bottom: 120,
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#7E22CE',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#10B981',
+    borderWidth: 2.5,
     elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    zIndex: 998,
   },
 });
-

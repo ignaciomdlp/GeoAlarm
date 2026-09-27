@@ -25,6 +25,8 @@ export const AVAILABLE_SOUNDS: SoundOption[] = [
 
 export interface AlarmAudioConfig {
   soundKey: SoundKey;
+  customSoundUri?: string;
+  customSoundName?: string;
   volume: number;
   vibration: VibrationPattern;
 }

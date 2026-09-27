@@ -24,6 +24,8 @@ interface AlarmState {
   toggleAlarm: (id: AlarmId) => Promise<void>;
   triggerAlarmActive: (alarm: Alarm, distance: number) => void;
   dismissCurrentAlarm: () => Promise<void>;
+  isDarkMode: boolean;
+  toggleDarkMode: () => void;
   updateTrackingMetrics: (location: LocationReading, distance: number, tier: PollingTier) => void;
 }
 
@@ -39,6 +41,9 @@ export const useAlarmStore = create<AlarmState>()(
       currentTier: 'FAR',
       isCreateModalOpen: false,
       editingAlarm: null,
+      isDarkMode: true,
+
+      toggleDarkMode: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
 
       openCreateModal: (alarm = null) => {
         set({ isCreateModalOpen: true, editingAlarm: alarm });
@@ -149,7 +154,7 @@ export const useAlarmStore = create<AlarmState>()(
     {
       name: '@geoalarm_alarms_storage',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ alarms: state.alarms }),
+      partialize: (state) => ({ alarms: state.alarms, isDarkMode: state.isDarkMode }),
     }
   )
 );

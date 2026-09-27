@@ -33,7 +33,9 @@ class AlarmSoundService {
     try {
       await this.setupAudioMode();
 
-      const source = LOCAL_SOUND_ASSETS[config.soundKey] || LOCAL_SOUND_ASSETS.alarm1;
+      const source = config.customSoundUri
+        ? { uri: config.customSoundUri }
+        : (LOCAL_SOUND_ASSETS[config.soundKey] || LOCAL_SOUND_ASSETS.alarm1);
       this.player = createAudioPlayer(source);
       this.player.loop = true;
       if (config.volume !== undefined) {
@@ -48,13 +50,19 @@ class AlarmSoundService {
     }
   }
 
-  public async previewSound(soundKey: SoundKey, durationMs: number = 3000): Promise<void> {
+  public async previewSound(
+    soundKeyOrUri: SoundKey | string,
+    durationMs: number = 3000,
+    isCustomUri: boolean = false
+  ): Promise<void> {
     await this.stopAlarm();
     this.isAlarmPlaying = true;
 
     try {
       await this.setupAudioMode();
-      const source = LOCAL_SOUND_ASSETS[soundKey] || LOCAL_SOUND_ASSETS.alarm1;
+      const source = isCustomUri
+        ? { uri: soundKeyOrUri }
+        : (LOCAL_SOUND_ASSETS[soundKeyOrUri] || LOCAL_SOUND_ASSETS.alarm1);
       this.player = createAudioPlayer(source);
       this.player.loop = false;
       this.player.volume = 1.0;

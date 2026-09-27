@@ -21,6 +21,10 @@ import {
   VIBRATION_PRESETS,
 } from '../../domain/models/alarm';
 import { alarmSoundService } from '../../services/audio/alarmSoundService';
+import { DistanceSlider } from './DistanceSlider';
+import { TonePickerModal } from './TonePickerModal';
+import { LocationMapPicker } from './LocationMapPicker';
+import { COLORS } from '../theme/colors';
 
 interface CreateAlarmModalProps {
   visible: boolean;
@@ -33,23 +37,33 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
   onClose,
   alarmToEdit,
 }) => {
+  const isDarkMode = useAlarmStore((s) => s.isDarkMode);
+  const currentLocation = useAlarmStore((s) => s.currentLocation);
   const addAlarm = useAlarmStore((s) => s.addAlarm);
   const updateAlarm = useAlarmStore((s) => s.updateAlarm);
+
+  const theme = COLORS[isDarkMode ? 'dark' : 'light'];
 
   const [name, setName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [radiusMeters, setRadiusMeters] = useState(500);
   const [selectedSound, setSelectedSound] = useState<SoundKey>('alarm1');
+  const [customSoundUri, setCustomSoundUri] = useState<string | undefined>(undefined);
+  const [customSoundName, setCustomSoundName] = useState<string | undefined>(undefined);
   const [selectedVibration, setSelectedVibration] = useState<VibrationPatternId>('continuous');
   const [searchResults, setSearchResults] = useState<NominatimPlace[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<NominatimPlace | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isTonePickerVisible, setIsTonePickerVisible] = useState(false);
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
 
   useEffect(() => {
     if (alarmToEdit) {
       setName(alarmToEdit.name);
       setRadiusMeters(alarmToEdit.radiusMeters);
       setSelectedSound(alarmToEdit.audioConfig.soundKey || 'alarm1');
+      setCustomSoundUri(alarmToEdit.audioConfig.customSoundUri);
+      setCustomSoundName(alarmToEdit.audioConfig.customSoundName);
       setSelectedVibration(alarmToEdit.audioConfig.vibration?.id || 'continuous');
       setSelectedPlace({
         place_id: 0,
@@ -66,6 +80,8 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
       setSearchQuery('');
       setRadiusMeters(500);
       setSelectedSound('alarm1');
+      setCustomSoundUri(undefined);
+      setCustomSoundName(undefined);
       setSelectedVibration('continuous');
       setSelectedPlace(null);
       setSearchResults([]);
@@ -80,8 +96,32 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
     setIsLoading(false);
   };
 
-  const handlePreviewSound = (key: SoundKey) => {
-    alarmSoundService.previewSound(key, 2500);
+  const handleTogglePreview = () => {
+    if (isPlayingPreview) {
+      alarmSoundService.stopAlarm();
+      setIsPlayingPreview(false);
+    } else {
+      setIsPlayingPreview(true);
+      if (customSoundUri) {
+        alarmSoundService.previewSound(customSoundUri, 3500, true);
+      } else {
+        alarmSoundService.previewSound(selectedSound, 3500, false);
+      }
+      setTimeout(() => {
+        setIsPlayingPreview(false);
+      }, 3500);
+    }
+  };
+
+  const handleLocationPinChange = (lat: number, lon: number) => {
+    setSelectedPlace((prev) => ({
+      place_id: prev?.place_id || Date.now(),
+      osm_id: prev?.osm_id || 0,
+      lat: lat.toFixed(6),
+      lon: lon.toFixed(6),
+      display_name: prev?.display_name || `Ubicación ajustada (${lat.toFixed(4)}, ${lon.toFixed(4)})`,
+      name: prev?.name || 'Punto en el mapa',
+    }));
   };
 
   const handleSave = async () => {
@@ -89,6 +129,8 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
 
     const audioConfig = {
       soundKey: selectedSound,
+      customSoundUri,
+      customSoundName,
       volume: 1.0,
       vibration: VIBRATION_PRESETS[selectedVibration] || VIBRATION_PRESETS.continuous,
     };
@@ -126,58 +168,84 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
       await addAlarm(newAlarm);
     }
 
+    alarmSoundService.stopAlarm();
     onClose();
   };
+
+  const currentSoundTitle = customSoundName
+    ? customSoundName
+    : AVAILABLE_SOUNDS.find((s) => s.id === selectedSound)?.name || 'Alarma Digital 1';
+
+  const previewLat = selectedPlace
+    ? parseFloat(selectedPlace.lat)
+    : currentLocation?.latitude ?? -33.4489;
+  const previewLon = selectedPlace
+    ? parseFloat(selectedPlace.lon)
+    : currentLocation?.longitude ?? -70.6693;
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>
+            <Text style={[styles.title, { color: theme.textPrimary }]}>
               {alarmToEdit ? 'Editar Alarma de Parada' : 'Nueva Alarma de Parada'}
             </Text>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <MaterialCommunityIcons name="close" size={26} color="#D8B4FE" />
+              <MaterialCommunityIcons name="close" size={26} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
-            <Text style={styles.sectionLabel}>Nombre de la alarma</Text>
+            {/* Nombre de la Alarma */}
+            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Nombre de la alarma</Text>
             <TextInput
               placeholder="Ej. Estación Metro Central / Paradero 14"
-              placeholderTextColor="#A855F7"
+              placeholderTextColor={isDarkMode ? '#A855F7' : '#9D174D'}
               value={name}
               onChangeText={setName}
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.surfaceElevated,
+                  borderColor: theme.border,
+                  color: theme.textPrimary,
+                },
+              ]}
             />
 
-            <Text style={styles.sectionLabel}>Destino en OpenStreetMap</Text>
+            {/* Ubicación de la Alarma (anteriormente Destino en OpenStreetMap) */}
+            <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Ubicación de la Alarma</Text>
             <View style={styles.searchRow}>
               <TextInput
                 placeholder="Buscar estación, paradero, dirección..."
-                placeholderTextColor="#A855F7"
+                placeholderTextColor={isDarkMode ? '#A855F7' : '#9D174D'}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                style={[
+                  styles.input,
+                  {
+                    flex: 1,
+                    marginBottom: 0,
+                    backgroundColor: theme.surfaceElevated,
+                    borderColor: theme.border,
+                    color: theme.textPrimary,
+                  },
+                ]}
                 onSubmitEditing={handleSearch}
               />
-              <TouchableOpacity style={styles.searchBtn} onPress={handleSearch}>
+              <TouchableOpacity
+                style={[styles.searchBtn, { backgroundColor: theme.primary }]}
+                onPress={handleSearch}
+              >
                 <MaterialCommunityIcons name="magnify" size={24} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
 
-            {isLoading && <ActivityIndicator color="#10B981" style={{ marginVertical: 8 }} />}
+            {isLoading && <ActivityIndicator color={theme.accent} style={{ marginVertical: 8 }} />}
 
-            {selectedPlace && (
-              <View style={styles.selectedPlaceBadge}>
-                <MaterialCommunityIcons name="map-marker-check" size={20} color="#10B981" />
-                <Text style={styles.selectedPlaceText} numberOfLines={2}>
-                  {selectedPlace.display_name}
-                </Text>
-              </View>
-            )}
-
+            {/* Resultados de búsqueda */}
             {searchResults.length > 0 && (
               <FlatList
                 data={searchResults}
@@ -188,7 +256,11 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
                   <TouchableOpacity
                     style={[
                       styles.placeItem,
-                      selectedPlace?.place_id === item.place_id && styles.placeItemSelected,
+                      { backgroundColor: theme.surfaceElevated, borderColor: theme.border },
+                      selectedPlace?.place_id === item.place_id && {
+                        borderColor: theme.accent,
+                        borderWidth: 2,
+                      },
                     ]}
                     onPress={() => {
                       setSelectedPlace(item);
@@ -196,7 +268,7 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
                       setSearchResults([]);
                     }}
                   >
-                    <Text style={styles.placeText} numberOfLines={2}>
+                    <Text style={[styles.placeText, { color: theme.textPrimary }]} numberOfLines={2}>
                       {item.display_name}
                     </Text>
                   </TouchableOpacity>
@@ -204,83 +276,207 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
               />
             )}
 
-            <View style={styles.radiusContainer}>
-              <Text style={styles.sectionLabel}>Radio de Alerta: {radiusMeters} metros</Text>
-              <View style={styles.radiusButtons}>
-                {[200, 500, 1000, 2000].map((val) => (
-                  <TouchableOpacity
-                    key={val}
-                    style={[styles.chip, radiusMeters === val && styles.chipActive]}
-                    onPress={() => setRadiusMeters(val)}
-                  >
-                    <Text style={[styles.chipText, radiusMeters === val && styles.chipTextActive]}>
-                      {val >= 1000 ? `${val / 1000} km` : `${val} m`}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+            {/* Ubicación seleccionada y coordenadas */}
+            {selectedPlace && (
+              <View style={[styles.selectedPlaceBadge, { backgroundColor: theme.surfaceElevated, borderColor: theme.accent }]}>
+                <MaterialCommunityIcons name="map-marker-check" size={20} color={theme.accent} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.selectedPlaceText, { color: theme.textPrimary }]} numberOfLines={2}>
+                    {selectedPlace.display_name}
+                  </Text>
+                  <Text style={[styles.coordsText, { color: theme.textSecondary }]}>
+                    Lat: {parseFloat(selectedPlace.lat).toFixed(5)}, Lon: {parseFloat(selectedPlace.lon).toFixed(5)}
+                  </Text>
+                </View>
               </View>
-            </View>
+            )}
 
+            {/* Vista previa interactiva en Mapa para confirmar y ajustar el Pin */}
+            <Text style={[styles.sectionLabel, { color: theme.textSecondary, marginTop: 12 }]}>
+              Vista previa y ajuste fino del Pin
+            </Text>
+            <LocationMapPicker
+              latitude={previewLat}
+              longitude={previewLon}
+              radiusMeters={radiusMeters}
+              onLocationChange={handleLocationPinChange}
+              theme={theme}
+              userLocation={currentLocation}
+            />
+
+            {/* Radio de Alerta con Slider preciso y botones rápidos */}
             <View style={styles.radiusContainer}>
-              <Text style={styles.sectionLabel}>Tono de Alarma (MP3 Offline)</Text>
-              <View style={styles.soundOptionsRow}>
-                {AVAILABLE_SOUNDS.slice(0, 2).map((snd) => (
-                  <View key={snd.id} style={styles.soundCardWrapper}>
+              <View style={styles.radiusHeaderRow}>
+                <Text style={[styles.sectionLabel, { color: theme.textSecondary, marginBottom: 0 }]}>
+                  Radio de Alerta:
+                </Text>
+                <View style={[styles.radiusValueBadge, { backgroundColor: theme.surfaceElevated, borderColor: theme.accent }]}>
+                  <Text style={[styles.radiusValueText, { color: theme.accent }]}>
+                    {radiusMeters >= 1000 ? `${(radiusMeters / 1000).toFixed(1)} km` : `${radiusMeters} m`}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Slider interactivo (50m a 2000m) */}
+              <DistanceSlider
+                value={radiusMeters}
+                onValueChange={setRadiusMeters}
+                accentColor={theme.accent}
+                trackBgColor={theme.surfaceElevated}
+                textColor={theme.textSecondary}
+              />
+
+              {/* Botones de acceso rápido */}
+              <View style={styles.radiusButtons}>
+                {[200, 500, 1000, 2000].map((val) => {
+                  const isActive = radiusMeters === val;
+                  return (
                     <TouchableOpacity
-                      style={[styles.soundCard, selectedSound === snd.id && styles.soundCardActive]}
-                      onPress={() => setSelectedSound(snd.id)}
+                      key={val}
+                      style={[
+                        styles.chip,
+                        {
+                          backgroundColor: isActive ? theme.accent : theme.chipBackground,
+                          borderColor: isActive ? theme.accent : theme.border,
+                        },
+                      ]}
+                      onPress={() => setRadiusMeters(val)}
                     >
-                      <MaterialCommunityIcons
-                        name={selectedSound === snd.id ? 'check-circle' : 'music-note'}
-                        size={18}
-                        color={selectedSound === snd.id ? '#10B981' : '#C084FC'}
-                      />
                       <Text
-                        style={[styles.soundCardText, selectedSound === snd.id && styles.soundCardTextActive]}
+                        style={[
+                          styles.chipText,
+                          {
+                            color: isActive ? '#064E3B' : theme.textSecondary,
+                            fontWeight: isActive ? '800' : '600',
+                          },
+                        ]}
                       >
-                        {snd.name}
+                        {val >= 1000 ? `${val / 1000} km` : `${val} m`}
                       </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.previewBtn}
-                      onPress={() => handlePreviewSound(snd.id)}
-                    >
-                      <MaterialCommunityIcons name="volume-high" size={16} color="#FFFFFF" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
+                  );
+                })}
               </View>
             </View>
 
+            {/* Tono de Alarma refinado: solo tono actual + botón escuchar + botón cambiar */}
+            <View style={styles.soundSection}>
+              <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Tono de Alarma</Text>
+              <View style={[styles.soundCompactCard, { backgroundColor: theme.surfaceElevated, borderColor: theme.border }]}>
+                <View style={[styles.soundIconWrap, { backgroundColor: theme.primary }]}>
+                  <MaterialCommunityIcons
+                    name={customSoundUri ? 'folder-music' : 'music-note'}
+                    size={22}
+                    color="#FFFFFF"
+                  />
+                </View>
+
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={[styles.soundTitle, { color: theme.textPrimary }]} numberOfLines={1}>
+                    {currentSoundTitle}
+                  </Text>
+                  <Text style={[styles.soundSub, { color: theme.textSecondary }]}>
+                    {customSoundUri ? 'Archivo personalizado' : 'Tono predeterminado offline'}
+                  </Text>
+                </View>
+
+                {/* Botón Escuchar / Preescuchar */}
+                <TouchableOpacity
+                  style={[
+                    styles.soundActionBtn,
+                    { backgroundColor: isPlayingPreview ? theme.primary : theme.accent },
+                  ]}
+                  onPress={handleTogglePreview}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons
+                    name={isPlayingPreview ? 'stop' : 'volume-high'}
+                    size={20}
+                    color={isPlayingPreview ? '#FFFFFF' : '#064E3B'}
+                  />
+                </TouchableOpacity>
+
+                {/* Botón Cambiar Tono */}
+                <TouchableOpacity
+                  style={[styles.soundChangeBtn, { backgroundColor: theme.primary }]}
+                  onPress={() => setIsTonePickerVisible(true)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.soundChangeBtnText}>Cambiar</Text>
+                  <MaterialCommunityIcons name="chevron-right" size={18} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Patrón de Vibración */}
             <View style={styles.radiusContainer}>
-              <Text style={styles.sectionLabel}>Patrón de Vibración</Text>
-              <View style={styles.radiusButtons}>
-                {(['continuous', 'pulse', 'sos'] as VibrationPatternId[]).map((vId) => (
-                  <TouchableOpacity
-                    key={vId}
-                    style={[styles.chip, selectedVibration === vId && styles.chipActive]}
-                    onPress={() => setSelectedVibration(vId)}
-                  >
-                    <Text style={[styles.chipText, selectedVibration === vId && styles.chipTextActive]}>
-                      {VIBRATION_PRESETS[vId].name.split(' ')[0]}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Patrón de Vibración</Text>
+              <View style={styles.vibrationButtons}>
+                {(['continuous', 'pulse', 'sos'] as VibrationPatternId[]).map((vibId) => {
+                  const isActive = selectedVibration === vibId;
+                  const label =
+                    vibId === 'continuous' ? 'Continuo' : vibId === 'pulse' ? 'Pulsaciones' : 'S.O.S.';
+                  return (
+                    <TouchableOpacity
+                      key={vibId}
+                      style={[
+                        styles.chip,
+                        {
+                          backgroundColor: isActive ? theme.accent : theme.chipBackground,
+                          borderColor: isActive ? theme.accent : theme.border,
+                        },
+                      ]}
+                      onPress={() => setSelectedVibration(vibId)}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color: isActive ? '#064E3B' : theme.textSecondary,
+                            fontWeight: isActive ? '800' : '600',
+                          },
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
 
+            {/* Botón Guardar / Activar */}
             <TouchableOpacity
-              style={[styles.createBtn, (!name.trim() || !selectedPlace) && { opacity: 0.5 }]}
-              onPress={handleSave}
+              style={[
+                styles.createBtn,
+                { backgroundColor: theme.accent },
+                (!name.trim() || !selectedPlace) && { opacity: 0.5 },
+              ]}
               disabled={!name.trim() || !selectedPlace}
+              onPress={handleSave}
             >
-              <Text style={styles.createBtnText}>
+              <Text style={[styles.createBtnText, { color: '#064E3B' }]}>
                 {alarmToEdit ? 'Guardar Cambios' : 'Guardar y Activar Alarma'}
               </Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
       </View>
+
+      {/* Modal de selección de tonos y archivos de audio */}
+      <TonePickerModal
+        visible={isTonePickerVisible}
+        onClose={() => setIsTonePickerVisible(false)}
+        selectedSoundKey={selectedSound}
+        customSoundUri={customSoundUri}
+        customSoundName={customSoundName}
+        onSelectTone={(sndKey, uri, customName) => {
+          setSelectedSound(sndKey);
+          setCustomSoundUri(uri);
+          setCustomSoundName(customName);
+        }}
+        theme={theme}
+      />
     </Modal>
   );
 };
@@ -288,20 +484,16 @@ export const CreateAlarmModal: React.FC<CreateAlarmModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(18, 7, 31, 0.85)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'flex-end',
   },
   container: {
-    backgroundColor: '#1E0B36',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: '#7E22CE',
-    maxHeight: '90%',
-  },
-  scrollArea: {
-    marginBottom: 10,
+    maxHeight: '92%',
+    padding: 20,
+    borderTopWidth: 1,
+    elevation: 20,
   },
   header: {
     flexDirection: 'row',
@@ -312,149 +504,164 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#34D399',
+  },
+  scrollArea: {
+    marginBottom: 20,
   },
   sectionLabel: {
-    color: '#D8B4FE',
-    fontWeight: '700',
     fontSize: 13,
+    fontWeight: '700',
     marginBottom: 6,
-    marginTop: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   input: {
-    backgroundColor: '#2D104E',
-    color: '#FFFFFF',
     borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 10,
+    padding: 14,
+    fontSize: 15,
     borderWidth: 1,
-    borderColor: '#4A154B',
-    fontSize: 14,
+    marginBottom: 14,
   },
   searchRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 8,
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
   },
   searchBtn: {
-    backgroundColor: '#7E22CE',
+    width: 48,
+    height: 48,
     borderRadius: 14,
-    width: 50,
     justifyContent: 'center',
     alignItems: 'center',
+    elevation: 4,
   },
   selectedPlaceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#2D104E',
-    padding: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#10B981',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
     marginVertical: 6,
+    gap: 8,
   },
   selectedPlaceText: {
-    color: '#34D399',
-    fontSize: 12,
-    fontWeight: '600',
-    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  coordsText: {
+    fontSize: 11,
+    marginTop: 2,
   },
   placeItem: {
-    padding: 10,
-    borderRadius: 8,
-    backgroundColor: '#2D104E',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
     marginBottom: 6,
   },
-  placeItemSelected: {
-    borderColor: '#10B981',
-    borderWidth: 1.5,
-  },
   placeText: {
-    color: '#E9D5FF',
     fontSize: 13,
   },
   radiusContainer: {
-    marginVertical: 8,
+    marginTop: 14,
+  },
+  radiusHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  radiusValueBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  radiusValueText: {
+    fontSize: 13,
+    fontWeight: '800',
   },
   radiusButtons: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     gap: 8,
+    marginTop: 4,
   },
   chip: {
     flex: 1,
-    paddingVertical: 9,
-    backgroundColor: '#2D104E',
+    paddingVertical: 10,
     borderRadius: 12,
-    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#4A154B',
-  },
-  chipActive: {
-    backgroundColor: '#10B981',
-    borderColor: '#10B981',
+    alignItems: 'center',
   },
   chipText: {
-    color: '#C084FC',
-    fontWeight: '700',
-    fontSize: 12,
+    fontSize: 13,
   },
-  chipTextActive: {
-    color: '#FFFFFF',
+  soundSection: {
+    marginTop: 16,
   },
-  soundOptionsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  soundCardWrapper: {
-    flex: 1,
+  soundCompactCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-  },
-  soundCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    backgroundColor: '#2D104E',
-    borderRadius: 12,
+    padding: 12,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#4A154B',
+    gap: 10,
   },
-  soundCardActive: {
-    borderColor: '#10B981',
-    backgroundColor: '#35165E',
-  },
-  soundCardText: {
-    color: '#C084FC',
-    fontWeight: '700',
-    fontSize: 11,
-  },
-  soundCardTextActive: {
-    color: '#FFFFFF',
-  },
-  previewBtn: {
-    backgroundColor: '#7E22CE',
-    padding: 9,
-    borderRadius: 10,
+  soundIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  createBtn: {
-    backgroundColor: '#10B981',
-    borderRadius: 16,
-    paddingVertical: 14,
+  soundTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  soundSub: {
+    fontSize: 11,
+    marginTop: 1,
+  },
+  soundActionBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 20,
+    elevation: 2,
+  },
+  soundChangeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    gap: 2,
+    elevation: 2,
+  },
+  soundChangeBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  vibrationButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 6,
+  },
+  createBtn: {
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 10,
+    elevation: 6,
   },
   createBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
     fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
 });

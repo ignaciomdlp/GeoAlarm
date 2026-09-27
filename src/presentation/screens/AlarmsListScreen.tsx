@@ -1,10 +1,13 @@
 import React from 'react';
 import { View, Text, FlatList, StyleSheet, Switch, TouchableOpacity, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAlarmStore } from '../store/useAlarmStore';
 import { Alarm, AVAILABLE_SOUNDS } from '../../domain/models/alarm';
+import { COLORS } from '../theme/colors';
 
 export const AlarmsListScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const alarms = useAlarmStore((s) => s.alarms);
   const toggleAlarm = useAlarmStore((s) => s.toggleAlarm);
   const removeAlarm = useAlarmStore((s) => s.removeAlarm);
@@ -12,6 +15,10 @@ export const AlarmsListScreen: React.FC = () => {
   const distance = useAlarmStore((s) => s.distanceToTargetMeters);
   const currentTier = useAlarmStore((s) => s.currentTier);
   const isTracking = useAlarmStore((s) => s.isTrackingServiceActive);
+  const isDarkMode = useAlarmStore((s) => s.isDarkMode);
+
+  const theme = COLORS[isDarkMode ? 'dark' : 'light'];
+  const bottomBarPadding = Math.max(insets.bottom, 10);
 
   const confirmDelete = (alarm: Alarm) => {
     Alert.alert(
@@ -28,25 +35,37 @@ export const AlarmsListScreen: React.FC = () => {
     );
   };
 
-  const getSoundLabel = (soundKey?: string) => {
-    const found = AVAILABLE_SOUNDS.find((s) => s.id === soundKey);
-    return found ? found.name : 'Alarma 1';
+  const getSoundLabel = (alarm: Alarm) => {
+    if (alarm.audioConfig?.customSoundName) {
+      return alarm.audioConfig.customSoundName;
+    }
+    const found = AVAILABLE_SOUNDS.find((s) => s.id === alarm.audioConfig?.soundKey);
+    return found ? found.name : 'Alarma Digital 1';
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>Mis Alarmas</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.title, { color: theme.textPrimary }]}>Mis Alarmas</Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
             {alarms.filter((a) => a.isActive).length} activas de {alarms.length}
           </Text>
         </View>
 
         {isTracking && (
-          <View style={styles.trackingBadge}>
-            <MaterialCommunityIcons name="radar" size={16} color="#10B981" />
-            <Text style={styles.trackingText}>
+          <View style={[styles.trackingBadge, { backgroundColor: theme.surface, borderColor: theme.accent }]}>
+            <MaterialCommunityIcons
+              name="radar"
+              size={16}
+              color={isDarkMode ? theme.accent : theme.accentDark}
+            />
+            <Text
+              style={[
+                styles.trackingText,
+                { color: isDarkMode ? theme.accent : theme.accentDark },
+              ]}
+            >
               {distance !== null ? `${distance} m restantes (${currentTier})` : 'GPS Activo'}
             </Text>
           </View>
@@ -55,44 +74,95 @@ export const AlarmsListScreen: React.FC = () => {
 
       {alarms.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <MaterialCommunityIcons name="map-marker-distance" size={70} color="#6B21A8" />
-          <Text style={styles.emptyTitle}>No tienes alarmas configuradas</Text>
-          <Text style={styles.emptySubtitle}>
-            Toca el botón (+) en la esquina inferior para crear una alarma hacia tu parada de metro o micro.
+          <MaterialCommunityIcons
+            name="map-marker-distance"
+            size={70}
+            color={isDarkMode ? theme.primary : theme.primaryDark}
+          />
+          <Text style={[styles.emptyTitle, { color: theme.textPrimary }]}>
+            No tienes alarmas configuradas
+          </Text>
+          <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+            Toca el botón (+) flotante para crear una alarma hacia tu parada de metro o micro.
           </Text>
         </View>
       ) : (
         <FlatList
           data={alarms}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingBottom: 140 }}
+          contentContainerStyle={{ paddingBottom: 130 + bottomBarPadding }}
+          showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
-            <View style={styles.card}>
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: theme.surface,
+                  borderColor: item.isActive ? theme.accent : theme.border,
+                },
+              ]}
+            >
               <View style={styles.cardHeader}>
                 <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={styles.alarmName}>{item.name}</Text>
-                  <Text style={styles.destinationText} numberOfLines={1}>
+                  <Text style={[styles.alarmName, { color: theme.textPrimary }]}>{item.name}</Text>
+                  <Text
+                    style={[styles.destinationText, { color: theme.textSecondary }]}
+                    numberOfLines={1}
+                  >
                     {item.destination.address || item.destination.name}
                   </Text>
                 </View>
                 <Switch
                   value={item.isActive}
                   onValueChange={() => toggleAlarm(item.id)}
-                  trackColor={{ false: '#4A154B', true: '#10B981' }}
-                  thumbColor={item.isActive ? '#FFFFFF' : '#A855F7'}
+                  trackColor={{ false: theme.border, true: theme.accent }}
+                  thumbColor={item.isActive ? (isDarkMode ? '#FFFFFF' : '#064E3B') : '#A855F7'}
                 />
               </View>
 
               <View style={styles.cardFooter}>
                 <View style={styles.chipsRow}>
-                  <View style={styles.chip}>
-                    <MaterialCommunityIcons name="radius" size={13} color="#34D399" />
-                    <Text style={styles.chipText}>{item.radiusMeters} m</Text>
+                  <View
+                    style={[
+                      styles.chip,
+                      { backgroundColor: theme.surfaceElevated, borderColor: theme.border },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="radius"
+                      size={13}
+                      color={isDarkMode ? theme.accentLight : theme.accentDark}
+                    />
+                    <Text
+                      style={[
+                        styles.chipText,
+                        { color: isDarkMode ? theme.accentLight : theme.accentDark },
+                      ]}
+                    >
+                      {item.radiusMeters >= 1000 ? `${item.radiusMeters / 1000} km` : `${item.radiusMeters} m`}
+                    </Text>
                   </View>
 
-                  <View style={styles.chip}>
-                    <MaterialCommunityIcons name="music-note" size={13} color="#C084FC" />
-                    <Text style={styles.chipSecondaryText}>{getSoundLabel(item.audioConfig?.soundKey)}</Text>
+                  <View
+                    style={[
+                      styles.chip,
+                      { backgroundColor: theme.surfaceElevated, borderColor: theme.border },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name="music-note"
+                      size={13}
+                      color={isDarkMode ? '#C084FC' : theme.primary}
+                    />
+                    <Text
+                      style={[
+                        styles.chipSecondaryText,
+                        { color: isDarkMode ? '#C084FC' : theme.primary },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {getSoundLabel(item)}
+                    </Text>
                   </View>
                 </View>
 
@@ -102,7 +172,11 @@ export const AlarmsListScreen: React.FC = () => {
                     onPress={() => openCreateModal(item)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <MaterialCommunityIcons name="pencil-outline" size={20} color="#A855F7" />
+                    <MaterialCommunityIcons
+                      name="pencil-outline"
+                      size={20}
+                      color={isDarkMode ? '#A855F7' : theme.primary}
+                    />
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -110,7 +184,7 @@ export const AlarmsListScreen: React.FC = () => {
                     onPress={() => confirmDelete(item)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <MaterialCommunityIcons name="trash-can-outline" size={20} color="#EF4444" />
+                    <MaterialCommunityIcons name="trash-can-outline" size={20} color={theme.danger} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -125,7 +199,6 @@ export const AlarmsListScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#12071F',
     paddingTop: 60,
     paddingHorizontal: 20,
   },
@@ -138,21 +211,22 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#FFFFFF',
+  },
+  subtitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 2,
   },
   trackingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#1E0B36',
-    paddingHorizontal: 12,
     paddingVertical: 6,
+    paddingHorizontal: 12,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#10B981',
   },
   trackingText: {
-    color: '#34D399',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -161,86 +235,78 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 30,
+    marginTop: 80,
   },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#E9D5FF',
     marginTop: 16,
     textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: 14,
-    color: '#A855F7',
-    marginTop: 8,
+    fontSize: 13,
     textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 18,
   },
   card: {
-    backgroundColor: '#1E0B36',
     borderRadius: 20,
     padding: 16,
     marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#4A154B',
+    borderWidth: 1.5,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 12,
   },
   alarmName: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#FFFFFF',
+    marginBottom: 2,
   },
   destinationText: {
     fontSize: 13,
-    color: '#C084FC',
-    marginTop: 2,
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 14,
-    paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#2D104E',
-  },
-  subtitle: {
-    fontSize: 13,
-    color: '#A855F7',
-    marginTop: 2,
-    fontWeight: '600',
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    paddingTop: 10,
   },
   chipsRow: {
     flexDirection: 'row',
     gap: 8,
-    alignItems: 'center',
     flex: 1,
+    marginRight: 8,
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#2D104E',
-    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
   },
   chipText: {
-    color: '#34D399',
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
   },
   chipSecondaryText: {
-    color: '#C084FC',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
   actionsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 12,
   },
   iconBtn: {

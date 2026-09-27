@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AlarmsListScreen } from '../screens/AlarmsListScreen';
 import { MapScreen } from '../screens/MapScreen';
@@ -8,28 +9,43 @@ import { ProfileScreen } from '../screens/ProfileScreen';
 import { ActiveAlarmScreen } from '../screens/ActiveAlarmScreen';
 import { CreateAlarmModal } from '../components/CreateAlarmModal';
 import { useAlarmStore } from '../store/useAlarmStore';
+import { COLORS } from '../theme/colors';
 
 const Tab = createBottomTabNavigator();
 
 export const BottomTabNavigator = () => {
+  const insets = useSafeAreaInsets();
   const isAlarmRinging = useAlarmStore((s) => s.isAlarmRinging);
+  const isDarkMode = useAlarmStore((s) => s.isDarkMode);
   const isCreateModalOpen = useAlarmStore((s) => s.isCreateModalOpen);
   const editingAlarm = useAlarmStore((s) => s.editingAlarm);
   const openCreateModal = useAlarmStore((s) => s.openCreateModal);
   const closeCreateModal = useAlarmStore((s) => s.closeCreateModal);
   const [currentTab, setCurrentTab] = useState<'Alarms' | 'Map' | 'Profile'>('Alarms');
 
+  const theme = COLORS[isDarkMode ? 'dark' : 'light'];
+  const bottomBarPadding = Math.max(insets.bottom, 10);
+  const barHeight = 64 + bottomBarPadding;
+
   if (isAlarmRinging) {
     return <ActiveAlarmScreen />;
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
       <Tab.Navigator
         screenOptions={{
           headerShown: false,
-          tabBarStyle: styles.floatingTabBar,
           tabBarShowLabel: false,
+          tabBarStyle: [
+            styles.dockedTabBar,
+            {
+              height: barHeight,
+              paddingBottom: bottomBarPadding,
+              backgroundColor: theme.tabBarBackground,
+              borderColor: theme.border,
+            },
+          ],
         }}
         screenListeners={{
           state: (e) => {
@@ -44,11 +60,13 @@ export const BottomTabNavigator = () => {
           component={AlarmsListScreen}
           options={{
             tabBarIcon: ({ focused }) => (
-              <MaterialCommunityIcons
-                name="alarm-multiple"
-                size={26}
-                color={focused ? '#10B981' : '#A855F7'}
-              />
+              <View style={styles.iconTabWrap}>
+                <MaterialCommunityIcons
+                  name="alarm-multiple"
+                  size={26}
+                  color={focused ? (isDarkMode ? theme.accent : theme.primary) : theme.textSecondary}
+                />
+              </View>
             ),
           }}
         />
@@ -58,9 +76,25 @@ export const BottomTabNavigator = () => {
           component={MapScreen}
           options={{
             tabBarButton: (props) => (
-              <TouchableOpacity {...props} style={styles.elevatedCenterButton} activeOpacity={0.85}>
-                <View style={styles.centerIconGradient}>
-                  <MaterialCommunityIcons name="map-marker-radius" size={32} color="#FFFFFF" />
+              <TouchableOpacity
+                {...props}
+                style={styles.elevatedCenterButton}
+                activeOpacity={0.85}
+              >
+                <View
+                  style={[
+                    styles.centerIconCircle,
+                    {
+                      backgroundColor: isDarkMode ? theme.primary : theme.surfaceElevated,
+                      borderColor: theme.accent,
+                    },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="map-marker-radius"
+                    size={30}
+                    color={isDarkMode ? '#FFFFFF' : theme.primary}
+                  />
                 </View>
               </TouchableOpacity>
             ),
@@ -72,23 +106,36 @@ export const BottomTabNavigator = () => {
           component={ProfileScreen}
           options={{
             tabBarIcon: ({ focused }) => (
-              <MaterialCommunityIcons
-                name="account-cog"
-                size={26}
-                color={focused ? '#10B981' : '#A855F7'}
-              />
+              <View style={styles.iconTabWrap}>
+                <MaterialCommunityIcons
+                  name="account-cog"
+                  size={26}
+                  color={focused ? (isDarkMode ? theme.accent : theme.primary) : theme.textSecondary}
+                />
+              </View>
             ),
           }}
         />
       </Tab.Navigator>
 
+      {/* Botón flotante para crear nueva alarma (Apilado verticalmente sobre el botón de ubicación en el mapa) */}
       {currentTab !== 'Profile' && (
         <TouchableOpacity
-          style={styles.fabButton}
+          style={[
+            styles.fabButton,
+            {
+              backgroundColor: theme.accent,
+              bottom: barHeight + 72, // Queda claramente por sobre el botón de centrar mapa
+            },
+          ]}
           activeOpacity={0.85}
           onPress={() => openCreateModal(null)}
         >
-          <MaterialCommunityIcons name="plus" size={32} color="#FFFFFF" />
+          <MaterialCommunityIcons
+            name="plus"
+            size={32}
+            color={isDarkMode ? '#1E0B36' : '#064E3B'}
+          />
         </TouchableOpacity>
       )}
 
@@ -102,45 +149,60 @@ export const BottomTabNavigator = () => {
 };
 
 const styles = StyleSheet.create({
-  floatingTabBar: {
+  dockedTabBar: {
     position: 'absolute',
-    bottom: 24,
-    left: 20,
-    right: 20,
-    height: 70,
-    backgroundColor: '#1E0B36',
-    borderRadius: 35,
-    borderWidth: 1,
-    borderColor: '#4A154B',
-    elevation: 8,
-    paddingHorizontal: 16,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderTopWidth: 1.5,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    paddingTop: 8,
+    paddingHorizontal: 28,
+    elevation: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+  },
+  iconTabWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 6,
   },
   elevatedCenterButton: {
-    top: -24,
+    top: -12, // Sobresale solo un ~20%, teniendo más del 70% dentro de la barra
     justifyContent: 'center',
     alignItems: 'center',
   },
-  centerIconGradient: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: '#7E22CE',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#10B981',
-    elevation: 10,
-  },
-  fabButton: {
-    position: 'absolute',
-    right: 24,
-    bottom: 110,
+  centerIconCircle: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#10B981',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 9,
+    borderWidth: 3,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  fabButton: {
+    position: 'absolute',
+    right: 20,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+    zIndex: 999,
   },
 });
