@@ -1,7 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-export const ALARM_NOTIFICATION_CHANNEL_ID = 'placeoclock_critical_alarm_channel';
+export const ALARM_NOTIFICATION_CHANNEL_ID = 'geoalarm_critical_alarm_channel';
 
 // Configurar cómo se comportan las notificaciones cuando la app está en primer plano
 Notifications.setNotificationHandler({

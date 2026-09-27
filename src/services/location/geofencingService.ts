@@ -49,7 +49,7 @@ class GeofencingService {
       pausesUpdatesAutomatically: false,
       activityType: Location.ActivityType.AutomotiveNavigation,
       foregroundService: {
-        notificationTitle: 'PlaceO\'Clock Activo',
+        notificationTitle: 'GeoAlarm Activo',
         notificationBody: 'Monitoreando distancia hacia tu destino...',
         notificationColor: '#7E22CE',
       },

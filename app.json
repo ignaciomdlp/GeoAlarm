@@ -1,25 +1,25 @@
 {
   "expo": {
-    "name": "PlaceO'Clock",
-    "slug": "place-o-clock",
+    "name": "GeoAlarm",
+    "slug": "geoalarm",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.placeoclock.geoalarm",
+      "bundleIdentifier": "com.geoalarm.app",
       "infoPlist": {
         "UIBackgroundModes": [
           "location",
           "audio",
           "fetch"
         ],
-        "NSLocationWhenInUseUsageDescription": "PlaceO'Clock necesita tu ubicación para calcular la distancia a tu parada de transporte.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "PlaceO'Clock monitorea en segundo plano tu distancia al destino para hacer sonar la alarma incluso si la app está cerrada o la pantalla bloqueada."
+        "NSLocationWhenInUseUsageDescription": "GeoAlarm necesita tu ubicación para calcular la distancia a tu parada de transporte.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "GeoAlarm monitorea en segundo plano tu distancia al destino para hacer sonar la alarma incluso si la app está cerrada o la pantalla bloqueada."
       }
     },
     "android": {
-      "package": "com.placeoclock.geoalarm",
+      "package": "com.geoalarm.app",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
@@ -44,7 +44,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "PlaceO'Clock requiere monitoreo continuo de geolocalización para avisarte antes de llegar a tu destino.",
+          "locationAlwaysAndWhenInUsePermission": "GeoAlarm requiere monitoreo continuo de geolocalización para avisarte antes de llegar a tu destino.",
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }

@@ -147,7 +147,7 @@ export const useAlarmStore = create<AlarmState>()(
       },
     }),
     {
-      name: '@placeoclock_alarms_storage',
+      name: '@geoalarm_alarms_storage',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({ alarms: state.alarms }),
     }

@@ -43,7 +43,9 @@ TaskManager.defineTask(GEOFENCE_BACKGROUND_TASK_NAME, async ({ data, error }) =>
   // Mecanismo de seguridad contra pérdida de hidratación de Zustand en procesos en segundo plano
   if (activeAlarms.length === 0) {
     try {
-      const persisted = await AsyncStorage.getItem('@placeoclock_alarms_storage');
+      const persisted =
+        (await AsyncStorage.getItem('@geoalarm_alarms_storage')) ||
+        (await AsyncStorage.getItem('@placeoclock_alarms_storage'));
       if (persisted) {
         const parsed = JSON.parse(persisted);
         const storedAlarms: Alarm[] = parsed?.state?.alarms || [];

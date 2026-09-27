@@ -1,4 +1,4 @@
-﻿export interface NominatimPlace {
+export interface NominatimPlace {
   place_id: number;
   osm_id: number;
   lat: string;
@@ -17,7 +17,7 @@ export async function searchPlacesByText(query: string): Promise<NominatimPlace[
   try {
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'PlaceOClock-GeoAlarm-App/1.0',
+        'User-Agent': 'GeoAlarm-App/1.0',
       },
     });
 

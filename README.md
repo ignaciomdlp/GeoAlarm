@@ -1,4 +1,4 @@
-# 📍 PlaceO'Clock (GeoAlarm)
+# 📍 GeoAlarm
 
 Aplicación móvil de alta precisión diseñada para pasajeros de transporte público (trenes, autobuses, metro, micro). Su propósito es despertar o alertar al usuario antes de llegar a su destino mediante alertas sonoras locales y hápticas que funcionan **100% offline**, con la **pantalla bloqueada**, e integrando un **mapa interactivo OpenStreetMap**.
 
@@ -8,7 +8,7 @@ Aplicación móvil de alta precisión diseñada para pasajeros de transporte pú
 
 Si al escanear el QR en **Expo Go** recibes el mensaje `[runtime not ready]`, se debe a lo siguiente:
 
-1. **Módulos Nativos y Foreground Service:** PlaceO'Clock utiliza servicios nativos en segundo plano (`Foreground Service`, `Background Location`, `expo-task-manager`, `expo-audio` y `expo-notifications` con canales de máxima prioridad).
+1. **Módulos Nativos y Foreground Service:** GeoAlarm utiliza servicios nativos en segundo plano (`Foreground Service`, `Background Location`, `expo-task-manager`, `expo-audio` y `expo-notifications` con canales de máxima prioridad).
 2. **Proyecto Precompilado (`expo prebuild`):** La app cuenta con la carpeta nativa `/android` con permisos especiales (`FOREGROUND_SERVICE_LOCATION`, `ACCESS_BACKGROUND_LOCATION`, `SYSTEM_ALERT_WINDOW`, `MODIFY_AUDIO_SETTINGS`).
 3. **Restricción de Expo Go:** La app estándar de Expo Go descargada de Play Store/App Store es un contenedor genérico que **no incluye** los binarios nativos ni los permisos de segundo plano de este proyecto.
 
@@ -45,7 +45,7 @@ npx expo run:android
 
 Este comando:
 * Compilará el código nativo de `/android` usando Gradle.
-* Instalará la aplicación de desarrollo en tu teléfono con el paquete `com.placeoclock.geoalarm`.
+* Instalará la aplicación de desarrollo en tu teléfono con el paquete `com.geoalarm.app`.
 * Abrirá la aplicación e iniciará el Metro Bundler automáticamente.
 
 ---
@@ -125,7 +125,7 @@ Para comprobar cómo salta la alarma al llegar a destino:
 2. Ingresa unas coordenadas lejanas a tu destino (a más de 6 km). Verás en la app que el badge marca `Tier: FAR` (polling cada 45 s para ahorrar batería).
 3. Modifica las coordenadas para acercarte a entre 1 y 5 km. El badge cambiará a `Tier: MEDIUM` (polling cada 15 s).
 4. Establece las coordenadas exactamente dentro del radio de tu destino:
-   * La pantalla cambiará a **¡LLEGASTE A TU DESTINO!** ([ActiveAlarmScreen.tsx](file:///d:/Users/endoe/PlaceO'Clock/src/presentation/screens/ActiveAlarmScreen.tsx)).
+   * La pantalla cambiará a **¡LLEGASTE A TU DESTINO!** (`src/presentation/screens/ActiveAlarmScreen.tsx`).
    * Empezará a sonar el tono MP3 local en bucle y la vibración continua.
    * Desliza el control **"Desliza para apagar »»"** hacia la derecha para detener el sonido y cancelar el rastreo GPS.
 
@@ -139,7 +139,7 @@ Para comprobar cómo salta la alarma al llegar a destino:
 El código sigue los principios de **Clean Architecture / Feature-First**:
 
 ```text
-PlaceO'Clock/
+GeoAlarm/
 ├── assets/
 │   └── sounds/                     # Audios locales (alarma 1.mp3, alarma 2.mp3)
 ├── src/

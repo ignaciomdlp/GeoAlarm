@@ -33,7 +33,7 @@ class PermissionsService {
     if (fgStatus !== 'granted') {
       Alert.alert(
         'Permiso de Ubicación Necesario',
-        'PlaceO\'Clock necesita tu ubicación para calcular la distancia a tu parada de destino.'
+        'GeoAlarm necesita tu ubicación para calcular la distancia a tu parada de destino.'
       );
       return this.checkAllPermissions();
     }
@@ -65,7 +65,7 @@ class PermissionsService {
     if (Platform.OS === 'android') {
       Alert.alert(
         'Optimización de Batería',
-        'Para evitar que Android suspenda el rastreo en trayectos largos mientras duermes, configura PlaceO\'Clock como "Sin restricciones" en el uso de batería.',
+        'Para evitar que Android suspenda el rastreo en trayectos largos mientras duermes, configura GeoAlarm como "Sin restricciones" en el uso de batería.',
         [
           { text: 'Más tarde', style: 'cancel' },
           { text: 'Ir a Ajustes', onPress: () => Linking.openSettings() },
